@@ -1,0 +1,57 @@
+SELECT 
+       CAST([I3TimeStampGMT] AS DATE) AS 'Date',
+       DATENAME (weekday,[I3TimeStampGMT]) AS 'Weekday',
+
+       SUM(CASE WHEN [cLevelName] = 'EOIVR - SB_Internal_LN' THEN nEnteredFirst END) AS 'Call Entered',
+       SUM(CASE WHEN [cLevelName] LIKE 'EOIVR - SB_Internal_LN - %%' THEN nEnteredFirst END) AS 'Succeeded',
+       (SELECT SUM(CASE WHEN [cLevelName] = 'EOIVR - SB_Internal_LN' THEN nEnteredFirst END) AS 'Call Entered')
+       -
+       (SELECT SUM(CASE WHEN [cLevelName] LIKE 'EOIVR - SB_Internal_LN - %%' THEN nEnteredFirst END) AS 'Succeeded') as 'Abandoned',
+       SUM(CASE WHEN [cLevelName] = 'EOIVR - SB_Internal_LN - 1 - CRES' THEN nEnteredFirst END) AS 'CRES',
+       SUM(CASE WHEN [cLevelName] = 'EOIVR - SB_Internal_LN - 2 - ITSD' THEN nEnteredFirst END) AS 'Service Desk',
+       SUM(CASE WHEN [cLevelName] = 'EOIVR - SB_Internal_LN - 3 - Operator' THEN nEnteredFirst END) AS 'Operator'
+
+       into #tmpNull1
+
+FROM cic_prod.dbo.IVRInterval
+
+WHERE
+
+I3TimeStampGMT between '2019-06-03 00:00:00' and '2019-06-07 23:59:59'
+and nLevel = '5'
+and cLevelName like '%%EOIVR - SB_Internal_LN%%'
+and cExitPath = '*'
+
+or
+
+I3TimeStampGMT between '2019-06-03 00:00:00' and '2019-06-07 23:59:59'
+and nLevel = '1'
+and cLevelName = 'EOIVR - SB_Internal_LN'
+and cExitPath = '*'
+
+GROUP BY CAST([I3TimeStampGMT] AS DATE), DATENAME(weekday,[I3TimeStampGMT])
+
+select '1-1-1900' as 'date', 'Total' as 'weekday', sum([Call Entered]) as 'Call Entered', sum(Succeeded) as 'Succeeded', sum(Abandoned) as 'Abandoned' , sum(CRES) as 'CRES', sum([Service Desk]) as 'Service Desk', sum(Operator) as 'Operator'
+
+into #tmpNull2
+
+from #tmpNull1
+
+select 
+       Date, 
+       Weekday, 
+       ISNULL([Call Entered], 0) as 'Call Entered', 
+       ISNULL(Succeeded, 0) as 'Succeeded', 
+       ISNULL(Abandoned, 0) as 'Abandoned', 
+       ISNULL(CRES, 0) as 'CRES', 
+       ISNULL([Service Desk], 0) as 'Service Desk', 
+       ISNULL(Operator, 0) as 'Operator' 
+
+from #tmpNull1
+
+union all
+select *
+from #tmpNull2
+
+drop table #tmpNull1
+drop table #tmpNull2
